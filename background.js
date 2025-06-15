@@ -1,0 +1,1 @@
+// Empty background script required by manifest
