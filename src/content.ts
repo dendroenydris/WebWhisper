@@ -1,7 +1,9 @@
-let bubble, chatBox;
-let timer;
+let bubble: HTMLDivElement | null = null;
+let chatBox: HTMLDivElement | null = null;
+let timer: ReturnType<typeof setTimeout>;
 
-function createChatBubble() {
+// Initialize chat bubble
+function createChatBubble(): void {
   bubble = document.createElement("div");
   bubble.id = "chat-bubble";
   bubble.innerText = "💬";
@@ -9,13 +11,15 @@ function createChatBubble() {
   bubble.addEventListener("click", expandChat);
 }
 
-let openaiKey = localStorage.getItem("openai_key");
+// Retrieve or prompt for OpenAI key
+let openaiKey: string | null = localStorage.getItem("openai_key");
 if (!openaiKey) {
   openaiKey = prompt("Enter your OpenAI API Key:");
   if (openaiKey) localStorage.setItem("openai_key", openaiKey);
 }
 
-function expandChat() {
+// Expand the chat interface
+function expandChat(): void {
   if (chatBox) return;
 
   chatBox = document.createElement("div");
@@ -29,15 +33,17 @@ function expandChat() {
   `;
   document.body.appendChild(chatBox);
 
-  // Delay attaching the event to make sure DOM is ready
+  // Wait for DOM insertion
   setTimeout(() => {
-    const askBtn = chatBox.querySelector("#ask-btn");
-    const input = chatBox.querySelector("#user-input");
-    const responseDiv = chatBox.querySelector("#response");
+    const askBtn = chatBox!.querySelector<HTMLButtonElement>("#ask-btn");
+    const input = chatBox!.querySelector<HTMLTextAreaElement>("#user-input");
+    const responseDiv = chatBox!.querySelector<HTMLDivElement>("#response");
+
+    if (!askBtn || !input || !responseDiv) return;
 
     askBtn.addEventListener("click", async () => {
       const question = input.value.trim();
-      if (!question) return;
+      if (!question || !openaiKey) return;
 
       responseDiv.innerText = "Thinking...";
 
@@ -47,35 +53,42 @@ function expandChat() {
         const res = await fetch("http://localhost:8000/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question, context: pageText, openai_key: openaiKey })
+          body: JSON.stringify({
+            question,
+            context: pageText,
+            openai_key: openaiKey
+          })
         });
 
         const data = await res.json();
-        const answer = data?.answer?.trim() || "Sorry, no answer returned.";
+        const answer = (data?.answer?.trim() as string) || "Sorry, no answer returned.";
         console.log("[RAG Answer]", answer);
         responseDiv.innerText = answer;
-      } catch (err) {
+      } catch (err: any) {
         responseDiv.innerText = "Error: " + err.message;
         console.error("Fetch failed", err);
       }
     });
   }, 100);
 
-  bubble.style.display = "none";
+  if (bubble) bubble.style.display = "none";
   resetTimer();
 }
 
-function collapseChat() {
+// Collapse chat after idle or close
+function collapseChat(): void {
   if (chatBox) {
     chatBox.remove();
     chatBox = null;
-    bubble.style.display = "block";
+    if (bubble) bubble.style.display = "block";
   }
 }
 
-function resetTimer() {
+// Idle timer logic
+function resetTimer(): void {
   clearTimeout(timer);
-  timer = setTimeout(collapseChat, 30000); // 30s idle
+  timer = setTimeout(collapseChat, 30000); // 30s idle timeout
 }
 
+// Initialize
 createChatBubble();
